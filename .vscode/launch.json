@@ -1,0 +1,41 @@
+{
+  // Menu "Exécuter et déboguer" (Ctrl+Shift+D) : choisis une config puis F5.
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "1. Producer - test sans Kafka (dry-run, 1 tour)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "producer.main",
+      "args": ["--once", "--dry-run"],
+      "cwd": "${workspaceFolder}",
+      "envFile": "${workspaceFolder}/.env"
+    },
+    {
+      "name": "2. Producer - vraies APIs -> Kafka (boucle)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "producer.main",
+      "cwd": "${workspaceFolder}",
+      "envFile": "${workspaceFolder}/.env"
+    },
+    {
+      "name": "3. Producer - replay démo (10 crimes/s, une fois)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "producer.main",
+      "args": ["--mode", "replay", "--speed", "10"],
+      "cwd": "${workspaceFolder}",
+      "envFile": "${workspaceFolder}/.env"
+    },
+    {
+      "name": "4. Lire les alertes (crimes.alerts)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/scripts/read_topic.py",
+      "args": ["crimes.alerts", "--from-beginning"],
+      "cwd": "${workspaceFolder}",
+      "envFile": "${workspaceFolder}/.env"
+    }
+  ]
+}

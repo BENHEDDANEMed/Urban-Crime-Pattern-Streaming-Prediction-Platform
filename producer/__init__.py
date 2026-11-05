@@ -1,0 +1,1 @@
+"""Semaine 1 : le producer récupère les crimes + la météo et les envoie dans Kafka."""

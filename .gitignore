@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+
+# Secrets
+.env
+
+# Données générées (trop lourdes pour GitHub)
+data/lake/*
+!data/lake/.gitkeep
+data/checkpoints/*
+!data/checkpoints/.gitkeep
+# Les vraies données téléchargées avec --save-sample (on garde seulement l'échantillon synthétique)
+data/sample/crimes_chicago.jsonl
+data/sample/crimes_los_angeles.jsonl
+data/sample/crimes_new_york.jsonl
+data/sample/crimes_london.jsonl
+
+# Spark
+spark-warehouse/
+metastore_db/
+derby.log
+
+# OS / éditeurs
+.DS_Store
+Thumbs.db
+.idea/
+
+
+
+
+# Fichiers téléchargés depuis Claude (pas dans le projet)
+Claude outputs/

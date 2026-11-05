@@ -1,0 +1,4 @@
+# Dépendances du producer (S1)
+requests>=2.31
+confluent-kafka>=2.6.1
+python-dotenv>=1.0

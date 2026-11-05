@@ -1,0 +1,1 @@
+"""Code partagé entre le producer (S1) et le job Spark (S2)."""

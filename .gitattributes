@@ -1,0 +1,6 @@
+# Fins de ligne Unix pour les fichiers lus dans Docker (évite les bugs Windows "\r")
+*.sh text eol=lf
+*.py text eol=lf
+*.yml text eol=lf
+Dockerfile text eol=lf
+*.Dockerfile text eol=lf
