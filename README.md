@@ -181,15 +181,4 @@ des problèmes rencontrés et des points de vigilance figure dans `HANDOFF.md`.
 ## Équipe
 
 Mohamed Benheddane (phase 1) · Mustapha Hamdaoui Alaoui (phase 2) · *(phase 3)* — EMSI Rabat
-````
 
-Enregistre avec **Ctrl+S**, puis vérifie et pousse :
-
-````powershell
-(Get-Content README.md).Count
-git add README.md
-git commit -m "README : fin du fichier (structure, état à la passation, sources, équipe)"
-git push
-````
-
-Le fichier doit faire environ **180 lignes**. Ensuite, ouvre la page GitHub du projet : le README doit s'afficher en entier, avec le schéma, les tableaux et la section « Équipe » en bas.
