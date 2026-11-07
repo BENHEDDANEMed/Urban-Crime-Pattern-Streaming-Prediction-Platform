@@ -97,15 +97,17 @@ services:
     environment:
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       POLL_INTERVAL_SECONDS: ${POLL_INTERVAL_SECONDS:-300}
+      MAX_RECORDS_PER_CITY: ${MAX_RECORDS_PER_CITY:-2000}
+      LOOKBACK_DAYS: ${LOOKBACK_DAYS:-}
       SOCRATA_APP_TOKEN: ${SOCRATA_APP_TOKEN:-}
       PYTHONUNBUFFERED: "1"
     volumes:
-      - ./data:/app/data   # checkpoints + échantillons restent sur ton PC
+      - ./data:/app/data
     command: >
       python -m producer.main
       --mode ${PRODUCER_MODE:-api}
       --speed ${REPLAY_SPEED:-10}
-    restart: on-failure   # relancé seulement s'il plante (pas quand le replay est fini)
+    restart: on-failure
 
   # --- S2 : le job Spark Structured Streaming ----------------------------------
   spark-streaming:
