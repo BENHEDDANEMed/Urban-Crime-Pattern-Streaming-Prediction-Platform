@@ -146,4 +146,50 @@ Des configurations prêtes sont dans le menu **Exécuter et déboguer** (Ctrl+Sh
 ├── data/                    sample/ (échantillons), lake/ (Bronze/Silver/Gold), checkpoints/
 ├── docs/
 │   ├── GUIDE_PHASE1.md      Explication simple du code de la phase 1
-│   └──
+
+│   └── CONTRAT_DONNEES.md   Format exact des messages et des tables
+├── docker-compose.yml
+└── HANDOFF.md               Passage de relais entre les membres de l'équipe
+````
+
+## État à la passation — 7 novembre 2026
+
+| Sem. | Lot | Stack | État |
+|---|---|---|---|
+| S1 | Ingestion temps réel, producer multi-villes | Kafka | ✅ Livré |
+| S2 | Traitement en flux et clustering | Spark Streaming, DBSCAN | ✅ Livré |
+| S3 | Data Lake Silver/Gold, météo historique, orchestration | Spark, Airflow | ✅ Livré |
+| S4 | Modèle de prédiction et suivi d'expériences | XGBoost, MLflow | ✅ Livré |
+| S5 | Entrepôt et transformations | Snowflake, dbt | ⬜ Non démarré |
+| S6 | Restitution et intégration continue | Streamlit, CI | ⬜ Non démarré |
+
+**Phases 1 et 2 terminées** (S1–S4). La phase 3 est cadrée mais n'a fait l'objet
+d'aucun développement. Le détail de ce qui est en place, des choix techniques,
+des problèmes rencontrés et des points de vigilance figure dans `HANDOFF.md`.
+
+## Sources de données
+
+| Source | Dataset | Mise à jour |
+|---|---|---|
+| Chicago Data Portal | `ijzp-q8t2` | Quotidienne (~7 jours de retard) |
+| LA Open Data | `k7nn-b2ep` (LAPD NIBRS, coordonnées `hndrdth_lat/lon`) | ~Toutes les 2 semaines |
+| NYC Open Data | `5uac-w243` (NYPD YTD) | Trimestrielle |
+| UK Police API | `crimes-street` (Londres centre) | Mensuelle |
+| Open-Meteo | `forecast?current=...` (météo actuelle, producer) | Chaque appel |
+| Open-Meteo Archive | `archive-api.open-meteo.com/v1/archive` (météo horaire passée) | ~5 jours de retard |
+
+## Équipe
+
+Mohamed Benheddane (phase 1) · Mustapha Hamdaoui Alaoui (phase 2) · *(phase 3)* — EMSI Rabat
+````
+
+Enregistre avec **Ctrl+S**, puis vérifie et pousse :
+
+````powershell
+(Get-Content README.md).Count
+git add README.md
+git commit -m "README : fin du fichier (structure, état à la passation, sources, équipe)"
+git push
+````
+
+Le fichier doit faire environ **180 lignes**. Ensuite, ouvre la page GitHub du projet : le README doit s'afficher en entier, avec le schéma, les tableaux et la section « Équipe » en bas.
