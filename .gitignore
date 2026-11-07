@@ -29,6 +29,13 @@ derby.log
 Thumbs.db
 .idea/
 
+# MLflow (base des expériences + modèles : regénérés par ml/train_category.py)
+mlflow.db
+mlruns/
+
+# Logs copiés à la main pour déboguer
+*.log
+
 
 
 

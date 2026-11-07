@@ -99,3 +99,50 @@ Produit par Spark quand DBSCAN trouve un hotspot dans une fenêtre de 30 minutes
 `spark.read.parquet("data/lake/bronze/crimes")`, puis
 `from_json(raw_json, schema)`, dédupliquer sur `event_id`, et filtrer
 `ingest_mode = 'api'` si on ne veut pas les données de démo.
+
+
+---
+
+## 5. Silver et Gold (phase 2)
+
+Écrits chaque jour par le DAG Airflow `crimewatch_daily`, en mode *overwrite*
+(relancer = même résultat). Lecture : `spark.read.parquet(...)` ou `pandas.read_parquet(...)`.
+
+### `data/lake/silver/crimes/` (partition `city=`)
+
+Un crime par ligne, sans doublon (`event_id` unique), sans données de démo.
+
+| Colonne | Type | Description |
+|---|---|---|
+| `event_id` | string | Clé unique |
+| `city`, `source` | string | |
+| `crime_type` | string | Libellé d'origine (gardé pour pouvoir reclasser) |
+| `crime_category` | string | Une des 16 catégories communes (§ 1), recalculée en Silver |
+| `description` | string | Sous-type (Chicago, NYC), lieu (LA), rue (Londres) |
+| `latitude`, `longitude` | double | |
+| `occurred_ts` | timestamp | Heure **locale** de la ville |
+| `occurred_date`, `occurred_hour`, `day_of_week`, `month`, `is_weekend` | | `day_of_week` : 1 = dimanche … 7 = samedi |
+| `hour_known` | int | 0 si l'heure n'est pas fiable (Londres, ou 00:00 pile) |
+| `ingested_ts` | timestamp | UTC |
+
+### `data/lake/silver/weather_hourly/` (partition `city=`)
+
+Une ligne par ville et par heure (heure **locale**), sur les dates couvertes par les crimes.
+Colonnes : `weather_ts`, `temperature_c`, `precipitation_mm`, `rain_mm`, `wind_speed_kmh`, `is_day`.
+
+### `data/lake/gold/crime_features/` (partition `city=`)
+
+Silver crimes + zone + météo au moment du crime :
+`zone_id` (`ville_ligne_colonne`), `zone_lat`, `zone_lon` (centre de la case de 0,005°),
+`temperature_c`, `precipitation_mm`, `wind_speed_kmh`, `is_raining`, `is_night`
+et `weather_level` (`hourly` = météo de l'heure exacte, `daily` = moyenne du jour si l'heure est inconnue).
+
+### `data/lake/gold/zone_hourly/` (partition `city=`)
+
+`zone_id`, `zone_lat`, `zone_lon`, `occurred_date`, `occurred_hour`, `crime_count`
+(seulement les crimes avec `hour_known = 1`).
+
+### `data/lake/gold/zone_stats/` (partition `city=`)
+
+Une ligne par zone : `crime_count`, `active_days`, `first_date`, `last_date`, `top_category`,
+`share_of_city_pct`, `rank_in_city` (1 = zone la plus touchée de la ville).

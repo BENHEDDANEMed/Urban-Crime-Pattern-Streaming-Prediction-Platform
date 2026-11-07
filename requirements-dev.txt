@@ -3,3 +3,8 @@
 pytest>=8.0
 numpy>=1.26
 scikit-learn>=1.4
+# Phase 2 : batch (pandas / Parquet) + Machine Learning
+pandas>=2.2
+pyarrow>=17.0
+xgboost>=2.1
+mlflow>=3.0

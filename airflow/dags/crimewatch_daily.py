@@ -19,7 +19,7 @@ from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.operators.bash import BashOperator
 
-PROJECT = os.getenv("CRIMEWATCH_HOME", "/opt/crimewatch")      # le dossier du projet (monté)
+PROJECT = os.getenv("CRIMEWATCH_HOME", "/app")   # le projet, monté au MÊME chemin que spark-streaming    # le dossier du projet (monté)
 PYTHON = os.getenv("JOBS_PYTHON", "/opt/jobs-venv/bin/python")  # le Python des jobs
 
 # Variables d'environnement ajoutées pour toutes les tâches
