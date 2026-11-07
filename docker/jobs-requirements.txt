@@ -1,0 +1,12 @@
+# Environnement Python des JOBS lancés par Airflow (/opt/jobs-venv dans l'image Airflow).
+# Séparé d'Airflow pour ne pas mélanger les versions (MLflow, Airflow et pandas
+# ont chacun leurs propres exigences).
+pyspark==3.5.3
+pandas>=2.2
+pyarrow>=17.0
+numpy>=1.26
+requests>=2.31
+python-dotenv>=1.0
+scikit-learn>=1.4
+xgboost>=2.1
+mlflow>=3.0
