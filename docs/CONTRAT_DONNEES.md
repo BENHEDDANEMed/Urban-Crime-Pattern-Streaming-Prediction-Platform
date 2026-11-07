@@ -31,7 +31,8 @@ Code source du format : [`common/schemas.py`](../common/schemas.py).
 | `raw` | object | `{...}` | Ligne brute de l'API, sans modification |
 
 **Catégories communes** : `theft`, `vehicle_theft`, `burglary`, `robbery`, `assault`,
-`sexual`, `drugs`, `weapons`, `vandalism`, `public_order`, `other`.
+`sexual`, `harassment`, `drugs`, `weapons`, `vandalism`, `fraud`, `trespass`, `traffic`,
+`justice`, `public_order`, `other`.
 
 ## 2. Topic Kafka `weather.raw`
 

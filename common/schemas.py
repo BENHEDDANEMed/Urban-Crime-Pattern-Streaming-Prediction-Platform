@@ -22,33 +22,64 @@ SCHEMA_VERSION = 1
 # Chaque ville nomme les crimes différemment. On les range dans des catégories
 # communes pour pouvoir comparer les villes (et pour le ML en phase 2).
 # L'ORDRE compte : la première catégorie qui correspond gagne.
-# Exemple : "CRIMINAL SEXUAL ASSAULT" doit aller dans "sexual" et pas "assault".
+# Exemples : "CRIMINAL SEXUAL ASSAULT" doit aller dans "sexual" et pas "assault",
+#            "IDENTITY THEFT" dans "fraud" et pas "theft",
+#            "DUI DRUG" dans "traffic" et pas "drugs".
+#
+# Version 2 (phase 2) : mesuré sur 176 000 vrais crimes, 15 à 24 % tombaient dans "other",
+# et le harcèlement (22 000 crimes à New York) était compté dans "public_order".
+# -> nouvelles catégories : harassment, fraud, trespass, traffic, justice.
 CATEGORY_KEYWORDS: list[tuple[str, list[str]]] = [
     ("vehicle_theft", ["MOTOR VEHICLE THEFT", "VEHICLE STOLEN", "VEHICLE   STOLEN",
                                    "OF MOTOR VEHICLE", "VEHICLE CRIME", "GRAND THEFT AUTO"]),
+    ("traffic", ["VEHICLE AND TRAFFIC", "TRAFFIC LAW", "TRAFFIC VIOLATION", "IMPAIRED DRIVING",
+                 " DUI ", "DRIVING UNDER THE INFLUENCE", "RECKLESS DRIVING"]),
     ("robbery", ["ROBBERY"]),
     ("burglary", ["BURGLARY"]),
     ("sexual", ["SEX", "RAPE"]),
+    ("harassment", ["HARASS", "HARRASS", "STALKING", "INTIMIDATION", "THREAT"]),
     ("assault", ["ASSAULT", "BATTERY", "HOMICIDE", "MURDER", "VIOLENT", "VIOLENCE"]),
-    ("drugs", ["NARCOTIC", "DRUG", "CONTROLLED SUBSTANCE"]),
-    ("weapons", ["WEAPON"]),
+    ("drugs", ["NARCOTIC", "DRUG", "CONTROLLED SUBSTANCE", "PARAPHERNALIA"]),
+    ("weapons", ["WEAPON", "CONCEALED CARRY"]),
     ("vandalism", ["CRIMINAL DAMAGE", "VANDALISM", "MISCHIEF", "ARSON"]),
+    ("fraud", ["DECEPTIVE PRACTICE", "FORGERY", "FRAUD", "EMBEZZLE", "COUNTERFEIT", "IDENTITY THEFT"]),
     ("theft", ["THEFT", "LARCENY", "SHOPLIFTING", "STOLEN", "PICKPOCKET", "PURSE SNATCHING"]),
-    ("public_order", ["ANTI SOCIAL", "PUBLIC ORDER", "DISORDERLY", "HARASS", "HARRASS",
-                      "PUBLIC PEACE"]),
+    ("trespass", ["TRESPASS"]),
+    ("justice", ["WARRANT", "CONTEMPT", "PAROLE", "PROBATION", "PUBLIC ADMINI", "PUBLIC OFFICER",
+                 "RESISTING", "OBSTRUCT"]),
+    ("public_order", ["ANTI SOCIAL", "PUBLIC ORDER", "DISORDERLY", "PUBLIC PEACE", "PUB ORD",
+                      "PROSTITUTION", "LIQUOR", "GAMBLING"]),
 ]
 CATEGORIES = [name for name, _ in CATEGORY_KEYWORDS] + ["other"]
+
+# Villes dont la colonne "description" contient un sous-type du crime (et pas un lieu) :
+# Chicago ("RETAIL THEFT", "TELEPHONE THREAT"...) et New York (pd_desc).
+# À Los Angeles, description = type de lieu ; à Londres = nom de rue -> pas utilisable.
+CITIES_WITH_DETAIL = {"chicago", "new_york"}
 
 
 def categorize(label: Optional[str]) -> str:
     """Transforme un libellé de crime (ex: 'PETIT LARCENY') en catégorie commune ('theft')."""
     if not label:
         return "other"
-    text = label.upper().replace("-", " ").replace("_", " ")
+    # Espaces autour du texte : permet de chercher un mot entier comme " DUI ".
+    text = " " + label.upper().replace("-", " ").replace("_", " ") + " "
     for category, keywords in CATEGORY_KEYWORDS:
         if any(keyword in text for keyword in keywords):
             return category
     return "other"
+
+
+def categorize_crime(crime_type: Optional[str], description: Optional[str] = None,
+                     city: Optional[str] = None) -> str:
+    """
+    Comme categorize(), mais si le type principal donne "other" (ex: Chicago "OTHER OFFENSE"),
+    on regarde le sous-type dans description (ex: "TELEPHONE THREAT" -> harassment).
+    """
+    category = categorize(crime_type)
+    if category == "other" and city in CITIES_WITH_DETAIL:
+        category = categorize(description)
+    return category
 
 
 # ---------------------------------------------------------------------------
@@ -137,7 +168,7 @@ def build_crime_event(
         "city": city,
         "source": source,
         "crime_type": crime_type_clean,
-        "crime_category": categorize(crime_type_clean),
+        "crime_category": categorize_crime(crime_type_clean, description, city),
         "description": (description or "").strip() or None,
         "latitude": round(lat, 6),
         "longitude": round(lon, 6),

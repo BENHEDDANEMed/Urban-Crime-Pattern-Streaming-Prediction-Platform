@@ -1,7 +1,7 @@
 """Tests du format commun (common/schemas.py). Lancer avec : pytest"""
 from datetime import datetime
 
-from common.schemas import build_crime_event, categorize, parse_datetime
+from common.schemas import build_crime_event, categorize, categorize_crime, parse_datetime
 
 
 def test_categorize_examples_from_each_city():
@@ -16,10 +16,40 @@ def test_categorize_examples_from_each_city():
     assert categorize("anti-social-behaviour") == "public_order"   # UK Police
     assert categorize("violent-crime") == "assault"
     assert categorize("criminal-damage-arson") == "vandalism"
-    assert categorize("HARRASSMENT 2") == "public_order"           # faute d'orthographe NYPD
+    assert categorize("HARRASSMENT 2") == "harassment"             # faute d'orthographe NYPD
     assert categorize("DANGEROUS DRUGS") == "drugs"
     assert categorize("something new") == "other"
     assert categorize(None) == "other"
+
+
+def test_categorize_v2_new_categories():
+    """Libellés réels trouvés dans "other" (phase 2), un par ville."""
+    assert categorize("DECEPTIVE PRACTICE") == "fraud"                     # Chicago
+    assert categorize("IDENTITY THEFT") == "fraud"                         # pas "theft"
+    assert categorize("FORGERY") == "fraud"                                # New York
+    assert categorize("CRIMINAL TRESPASS") == "trespass"                   # Chicago + New York
+    assert categorize("602(M) - PC - M - TRESPASS - OCCUPY PROPERTY WITHOUT CONSENT - 90J") == "trespass"
+    assert categorize("VEHICLE AND TRAFFIC LAWS") == "traffic"             # pas "vehicle_theft"
+    assert categorize("23152(A) - VC - M - DUI ALCOHOL - 90D") == "traffic"  # LA
+    assert categorize("INTOXICATED & IMPAIRED DRIVING") == "traffic"
+    assert categorize("HUMAN TRAFFICKING") != "traffic"                    # "TRAFFIC" seul : piège
+    assert categorize("422(A) - PC - F - CRIMINAL THREATS - 13C") == "harassment"  # LA
+    assert categorize("STALKING") == "harassment"
+    assert categorize("978.5 - PC - M - BENCH WARRANT/FAILURE TO APPEAR - 90Z") == "justice"
+    assert categorize("OFFENSES AGAINST PUBLIC ADMINI") == "justice"
+    assert categorize("11364(A) - HS - M - POSSESS UNLAWFUL PARAPHERNALIA - 35B") == "drugs"
+    assert categorize("CONCEALED CARRY LICENSE VIOLATION") == "weapons"
+    assert categorize("OFF. AGNST PUB ORD SENSBLTY &") == "public_order"
+    assert categorize("OTHER OFFENSE") == "other"
+
+
+def test_categorize_crime_uses_description_only_where_it_is_a_subtype():
+    # Chicago : "OTHER OFFENSE" + sous-type "TELEPHONE THREAT" -> harassment
+    assert categorize_crime("OTHER OFFENSE", "TELEPHONE THREAT", "chicago") == "harassment"
+    # Le type principal a priorité sur la description
+    assert categorize_crime("THEFT", "TELEPHONE THREAT", "chicago") == "theft"
+    # Los Angeles : description = type de lieu -> jamais utilisée
+    assert categorize_crime("SOMETHING", "VEHICLE STOLEN LOT", "los_angeles") == "other"
 
 
 def test_parse_datetime_formats():

@@ -10,7 +10,9 @@ Ce que fait ce job :
     2. garde seulement les vraies données (ingest_mode = 'api')
     3. déduplique sur event_id (on garde la version arrivée en dernier dans Kafka)
     4. ajoute les colonnes de temps (date, heure, jour de la semaine, mois)
-    5. ajoute hour_known : 0 si l'heure du crime n'est pas fiable
+    5. recalcule crime_category avec les règles à jour de common/schemas.py
+       (le libellé d'origine crime_type est gardé : on peut reclasser sans re-télécharger)
+    6. ajoute hour_known : 0 si l'heure du crime n'est pas fiable
        - Londres : l'API ne donne que le mois -> heure toujours inconnue
        - toutes villes : 00:00 pile = souvent "heure inconnue"
          (mesuré : 2,7x plus que prévu à Chicago, 1,6x à LA, normal à New York)
@@ -27,6 +29,8 @@ from pyspark.sql import DataFrame, SparkSession, Window
 from pyspark.sql import functions as F
 from pyspark.sql.types import (DoubleType, IntegerType, StringType, StructField,
                                StructType)
+
+from common.schemas import categorize_crime
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s - %(message)s")
 log = logging.getLogger("bronze_to_silver")
@@ -108,6 +112,11 @@ def crimes_to_silver(bronze: DataFrame) -> DataFrame:
 
     crimes = keep_latest(crimes, ["event_id"])
 
+    # Catégories recalculées avec la version actuelle des règles (UDF = fonction Python dans Spark)
+    recategorize = F.udf(categorize_crime, StringType())
+    crimes = crimes.withColumn("crime_category",
+                               recategorize("crime_type", "description", "city"))
+
     occurred = F.to_timestamp("occurred_at")         # heure LOCALE de la ville
     crimes = (crimes
               .withColumn("occurred_ts", occurred)
@@ -147,6 +156,17 @@ def log_hour_quality(silver: DataFrame) -> None:
                  row["city"], row["crimes"], row["pct_hour_unknown"])
 
 
+def log_category_quality(silver: DataFrame) -> None:
+    """Contrôle qualité : part des crimes sans catégorie précise ("other"), par ville."""
+    stats = (silver.groupBy("city")
+             .agg(F.round(100 * F.avg((F.col("crime_category") == "other").cast("int")), 1)
+                  .alias("pct_other"))
+             .orderBy("city")
+             .collect())
+    for row in stats:
+        log.info("Qualité | %-12s | catégorie 'other' : %5.1f %%", row["city"], row["pct_other"])
+
+
 # ---------------------------------------------------------------------------
 # Météo
 # ---------------------------------------------------------------------------
@@ -172,6 +192,7 @@ def run(spark: SparkSession, lake: str = LAKE) -> None:
         .parquet(f"{lake}/silver/crimes"))
     log.info("Silver crimes : %d lignes (doublons et démo enlevés)", silver_crimes.count())
     log_hour_quality(silver_crimes)
+    log_category_quality(silver_crimes)
 
     weather_path = f"{lake}/bronze/weather"
     try:
