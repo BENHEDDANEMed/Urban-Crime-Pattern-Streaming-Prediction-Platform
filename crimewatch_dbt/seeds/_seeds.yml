@@ -1,0 +1,40 @@
+version: 2
+
+seeds:
+  - name: cities
+    description: "Les 4 villes suivies : nom, pays, fuseau horaire, source des données."
+    config:
+      column_types:
+        hour_reliable: integer
+    columns:
+      - name: city
+        description: "Clé de la ville (comme dans Kafka et le Data Lake)."
+        data_tests: [unique, not_null]
+      - name: hour_reliable
+        description: "0 si la source ne donne pas l'heure du crime (Londres : seulement le mois)."
+
+  - name: crime_categories
+    description: >
+      Les 16 catégories communes (common/schemas.py, CATEGORIES), avec un libellé français
+      et une famille. Un test pytest vérifie que cette liste est identique à celle du code Python.
+    config:
+      column_types:
+        is_violent: integer
+    columns:
+      - name: crime_category
+        data_tests: [unique, not_null]
+      - name: crime_family
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [atteinte_aux_personnes, atteinte_aux_biens, fraude, stupefiants_armes, ordre_public, autre]
+
+  - name: hours
+    description: "Les 24 heures de la journée et leur créneau (nuit, matin, après-midi, soir)."
+    config:
+      column_types:
+        hour_of_day: integer
+        time_slot_order: integer
+    columns:
+      - name: hour_of_day
+        data_tests: [unique, not_null]

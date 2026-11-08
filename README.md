@@ -3,11 +3,12 @@
 Plateforme Data Engineering qui récupère des données de criminalité urbaine
 (Chicago, Los Angeles, New York, Londres) en quasi temps réel, détecte des zones
 à risque avec **DBSCAN**, construit un Data Lake **Bronze / Silver / Gold** avec **Spark**,
-l'enrichit avec la **météo historique**, et prédit le **type de crime** avec **XGBoost**,
-le tout orchestré par **Airflow**.
+l'enrichit avec la **météo historique**, prédit le **type de crime** avec **XGBoost**,
+modélise un entrepôt en étoile avec **dbt** (DuckDB ou **Snowflake**) et restitue le tout dans un
+dashboard **Streamlit + Folium**, le tout orchestré par **Airflow** et testé par **GitHub Actions**.
 
-> **État du projet :** Phase 1 (ingestion + streaming) et Phase 2 (Data Lake + météo + ML + Airflow)
-> terminées et testées de bout en bout. Phase 3 (Snowflake + dbt + dashboard) à faire.
+> **État du projet :** Phases 1 et 2 terminées et testées de bout en bout sur les vraies données.
+> Phase 3 (dbt, dashboard, CI) codée et testée sur données synthétiques ; validation Docker et Snowflake à faire.
 > Voir [`HANDOFF.md`](HANDOFF.md).
 
 ## Architecture
@@ -29,15 +30,19 @@ flowchart LR
     A --> K
     S --> B[(Bronze<br/>Parquet brut)]
 
-    subgraph AF["Airflow : DAG crimewatch_daily (phase 2)"]
+    subgraph AF["Airflow : DAG crimewatch_daily (phases 2 et 3)"]
         B --> SV[(Silver<br/>propre, dédupliqué)]
         ARCH[Open-Meteo<br/>archives] --> WH[(Silver<br/>météo horaire)]
         SV --> G[(Gold<br/>features, zones)]
         WH --> G
         G --> ML[XGBoost<br/>+ MLflow]
+        ML --> PR[(Gold<br/>prédictions top-3)]
+        G --> DBT[dbt<br/>étoile + tests]
+        PR --> DBT
     end
-
-    G -.phase 3.-> SN[Snowflake + dbt<br/>Streamlit]
+    DBT --> DW[(DuckDB<br/>ou Snowflake)]
+    DW --> D[Dashboard<br/>Streamlit + Folium]
+    A -.temps réel.-> D
 ```
 
 | Couche | Contenu | Écrit par |
@@ -47,6 +52,9 @@ flowchart LR
 | **Silver météo** | Météo heure par heure aux dates des crimes | `batch/weather_history.py` |
 | **Gold** | `crime_features` (crime + météo + zone), `zone_hourly`, `zone_stats` | `batch/silver_to_gold.py` |
 | **Modèle** | XGBoost : catégorie du crime, suivi dans MLflow | `ml/train_category.py` |
+| **Prédictions** | Top-3 des catégories par zone, heure, semaine/week-end | `ml/predict_zones.py` |
+| **Entrepôt** | Schéma en étoile + tables d'analyse, 50 tests de données | `crimewatch_dbt/` (dbt) |
+| **Dashboard** | Carte, alertes live, prédictions, analyses | `dashboard/app.py` |
 
 ## Démarrage rapide
 
@@ -66,6 +74,9 @@ docker compose up -d --build producer
 
 # 4. Batch : Airflow (premier build : 5 à 15 min)
 docker compose up -d --build airflow
+
+# 5. Dashboard (après un premier passage du DAG)
+docker compose up -d --build dashboard
 ```
 
 | Interface | Adresse |
@@ -74,12 +85,15 @@ docker compose up -d --build airflow
 | Spark UI | http://localhost:4040 |
 | Airflow | http://localhost:8081 — `admin` / `admin` (mot de passe de développement) |
 | MLflow | `mlflow ui --backend-store-uri sqlite:///mlflow.db` puis http://localhost:5000 |
+| Dashboard | http://localhost:8501 |
+| Documentation dbt | `cd crimewatch_dbt` puis `dbt docs generate` et `dbt docs serve --port 8090` |
 
 **Lancer le pipeline batch :** dans Airflow, activer le DAG `crimewatch_daily`, puis ▶️ *Trigger DAG*.
 Il enchaîne :
 
 ```
-bronze_to_silver → check_silver → weather_history → silver_to_gold → check_gold → train_category
+bronze_to_silver → check_silver → weather_history → silver_to_gold → check_gold
+  → train_category → predict_zones → load_snowflake → dbt_build
 ```
 
 Il tourne aussi tout seul chaque jour à 06:00 UTC.
@@ -97,10 +111,17 @@ python -m venv .venv
 # Windows : .venv\Scripts\activate     Mac/Linux : source .venv/bin/activate
 pip install -r requirements-dev.txt
 
-pytest                                       # 28 tests, sans internet ni Kafka
+pytest                                       # 33 tests, sans internet ni Kafka
 python -m producer.main --once --dry-run     # tester le producer sans Kafka
 python -m ml.train_category                  # entraîner le modèle (Gold doit exister)
+
+pip install -r crimewatch_dbt/requirements.txt -r dashboard/requirements.txt
+cd crimewatch_dbt && dbt build && cd ..      # entrepôt DuckDB + tests de données
+streamlit run dashboard/app.py               # http://localhost:8501
 ```
+
+Tout essayer **sans Docker ni vraies données** (Gold synthétique) : section 11 de
+[`docs/GUIDE_PHASE3.md`](docs/GUIDE_PHASE3.md).
 
 Des configurations prêtes sont dans le menu **Exécuter et déboguer** (Ctrl+Shift+D).
 
@@ -139,6 +160,11 @@ Des configurations prêtes sont dans le menu **Exécuter et déboguer** (Ctrl+Sh
 │   └── quality_checks.py    Contrôles qualité entre les étapes Airflow
 ├── ml/                      Phase 2 — Machine Learning
 │   └── train_category.py    XGBoost + MLflow (split temporel, baselines)
+│   └── predict_zones.py     Phase 3 — top-3 prédit par zone / heure (pour le dashboard)
+├── crimewatch_dbt/          Phase 3 — dbt : sources, staging, étoile, tests (DuckDB / Snowflake)
+├── warehouse/               Phase 3 — load_snowflake.py (Gold -> Snowflake RAW)
+├── dashboard/               Phase 3 — Streamlit + Folium (app.py, data.py)
+├── .github/workflows/       Phase 3 — CI : pytest + pipeline dbt sur données synthétiques
 ├── airflow/dags/            Phase 2 — crimewatch_daily.py (le DAG)
 ├── scripts/                 Petits outils (lire un topic, générer des données de test)
 ├── tests/                   Tests pytest (sans internet, sans Kafka, sans Spark)
@@ -146,6 +172,7 @@ Des configurations prêtes sont dans le menu **Exécuter et déboguer** (Ctrl+Sh
 ├── data/                    sample/ (échantillons), lake/ (Bronze/Silver/Gold), checkpoints/
 ├── docs/
 │   ├── GUIDE_PHASE1.md      Explication simple du code de la phase 1
+│   ├── GUIDE_PHASE3.md      Explication simple de la phase 3 (dbt, dashboard, CI)
 
 │   └── CONTRAT_DONNEES.md   Format exact des messages et des tables
 ├── docker-compose.yml
@@ -160,11 +187,12 @@ Des configurations prêtes sont dans le menu **Exécuter et déboguer** (Ctrl+Sh
 | S2 | Traitement en flux et clustering | Spark Streaming, DBSCAN | ✅ Livré |
 | S3 | Data Lake Silver/Gold, météo historique, orchestration | Spark, Airflow | ✅ Livré |
 | S4 | Modèle de prédiction et suivi d'expériences | XGBoost, MLflow | ✅ Livré |
-| S5 | Entrepôt et transformations | Snowflake, dbt | ⬜ Non démarré |
-| S6 | Restitution et intégration continue | Streamlit, CI | ⬜ Non démarré |
+| S5 | Entrepôt et transformations | dbt, DuckDB, Snowflake | 🟡 Codé, testé (CI) ; Snowflake à brancher |
+| S6 | Restitution et intégration continue | Streamlit, Folium, GitHub Actions | 🟡 Codé, testé (CI) ; validation Docker à faire |
 
-**Phases 1 et 2 terminées** (S1–S4). La phase 3 est cadrée mais n'a fait l'objet
-d'aucun développement. Le détail de ce qui est en place, des choix techniques,
+**Phases 1 et 2 terminées** (S1–S4). **Phase 3 codée** (S5–S6) : dbt, prédictions, dashboard et CI
+fonctionnent sur données synthétiques ; restent la validation dans Docker sur les vraies données
+et le branchement de Snowflake. Le détail de ce qui est en place, des choix techniques,
 des problèmes rencontrés et des points de vigilance figure dans `HANDOFF.md`.
 
 ## Sources de données
@@ -180,5 +208,5 @@ des problèmes rencontrés et des points de vigilance figure dans `HANDOFF.md`.
 
 ## Équipe
 
-Mohamed Benheddane (phase 1) · Mustapha Hamdaoui Alaoui (phase 2) · *(phase 3)* — EMSI Rabat
+Mohamed Benheddane (phase 1) · Mustapha Hamdaoui Alaoui (phase 2) · Yassir Drissi (phase 3) — EMSI Rabat
 

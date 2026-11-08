@@ -1,0 +1,38 @@
+version: 2
+
+models:
+  - name: stg_crimes
+    description: "Crimes de Gold crime_features, typés. hour_of_day = NULL quand l'heure n'est pas fiable."
+    columns:
+      - name: event_id
+        data_tests: [unique, not_null]
+      - name: city
+        data_tests: [not_null]
+      - name: zone_id
+        data_tests: [not_null]
+      - name: weather_level
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [hourly, daily, none]
+
+  - name: stg_zone_stats
+    columns:
+      - name: zone_id
+        data_tests: [unique, not_null]
+
+  - name: stg_zone_hourly
+    description: "Crimes par zone / date / heure."
+
+  - name: stg_weather_hourly
+    description: "Météo horaire de Silver (heure locale)."
+
+  - name: stg_zone_predictions
+    description: "Prédictions top-3 (format long : 3 lignes par zone / type de jour / heure)."
+    columns:
+      - name: prediction_rank
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [1, 2, 3]
+                quote: false

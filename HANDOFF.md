@@ -221,23 +221,55 @@ Puis relancer le DAG (Bronze n'est pas touché).
 
 ---
 
-## Phase 3 (S5 + S6) — Snowflake + dbt + Dashboard + CI
+## Phase 3 (S5 + S6) — dbt (DuckDB / Snowflake) + Dashboard + CI
 
-**Responsable :** *(nom)*
-**Statut :** pas commencé
+**Responsable :** Yassir Drissi
+**Statut :** 🟡 Code terminé et testé sur données synthétiques (CI). Reste à valider sur les vraies données
+(DAG complet dans Docker) et à brancher Snowflake.
 
-### ➡️ À faire
+### ✅ Ce qui est fait
 
-1. **Snowflake + dbt** : charger les tables Gold (`crime_features`, `zone_stats`, `zone_hourly`)
-   et construire un schéma en étoile : `fact_crime` + `dim_zone`, `dim_date`, `dim_category`, `dim_city`.
-   Tests dbt : `unique` / `not_null` sur `event_id`, `relationships` vers les dimensions.
-2. **Dashboard Streamlit** :
-   - carte des zones (`zone_stats` : `zone_lat`, `zone_lon`, `crime_count`, `top_category`) ;
-   - alertes temps réel (topic `crimes.alerts`, garder la dernière version par `alert_id`) ;
-   - top-3 des catégories prédites pour une zone et une heure (modèle MLflow `xgb_v2_zone_history`).
-3. **CI GitHub Actions** : `pip install -r requirements-dev.txt` puis `pytest` à chaque push.
-4. *(Optionnel)* modèle « créneau horaire » (voir limite 7) et métriques ML par ville.
+- [x] **Projet dbt** `crimewatch_dbt/` : sources (Parquet du lake) → staging (5 vues) → marts (12 tables),
+      3 seeds (villes, 16 catégories, heures), **50 tests de données** (clés, relations, 3 tests sur mesure)
+- [x] **Schéma en étoile** : `fact_crime` + `dim_city`, `dim_zone`, `dim_category`, `dim_date`, `dim_hour` ;
+      `fact_zone_hourly` ; tables d'analyse `mart_city_comparison`, `mart_city_daily`, `mart_hourly_profile`,
+      `mart_weather_impact` (crimes par heure, corrigés de l'heure de la journée), `mart_zone_predictions`
+- [x] **Deux cibles, un seul SQL** : DuckDB par défaut (`data/warehouse/crimewatch.duckdb`), Snowflake avec
+      `--target snowflake` après `python -m warehouse.load_snowflake`
+- [x] **Prédictions** `ml/predict_zones.py` → `gold/zone_predictions` : top-3 des catégories par zone (100 par ville)
+      × heure × semaine/week-end, avec le dernier run MLflow `xgb_v2_zone_history`
+- [x] **Métriques ML par ville** dans MLflow (`accuracy_<ville>`, `top3_accuracy_<ville>`)
+- [x] **Airflow** : `predict_zones` → `load_snowflake` (ne fait rien sans compte) → `dbt_build` ;
+      dbt dans son propre venv `/opt/dbt-venv`
+- [x] **Dashboard Streamlit + Folium** (`dashboard/`, service `dashboard`, http://localhost:8501) :
+      heatmap par créneau, alertes Kafka live, top-3 prédit, comparaison des villes, profil horaire, météo
+- [x] **CI GitHub Actions** : `pytest` + pipeline de bout en bout sur un Gold synthétique
+      (`scripts/generate_gold_fixture.py` → modèle → prédictions → `dbt build`)
+- [x] Guide pour comprendre le code : [`docs/GUIDE_PHASE3.md`](docs/GUIDE_PHASE3.md)
 
-### 📞 Contact
+### ▶️ Comment lancer
 
-Questions sur la phase 2 : Mustapha (Silver, Gold, météo, ML, Airflow).
+```bash
+docker compose up -d --build airflow dashboard      # reconstruire l'image Airflow (dbt ajouté)
+```
+Airflow → ▶️ *Trigger DAG* `crimewatch_daily` (9 tâches) → http://localhost:8501.
+
+Sans Docker, sur des données synthétiques : voir la section 11 de `docs/GUIDE_PHASE3.md`.
+
+### ⚠️ Limites connues
+
+1. **Images Docker non testées** (Airflow avec dbt, dashboard) : à vérifier au premier `docker compose up --build`.
+2. **Snowflake non testé** (pas de compte) : le chargement et `dbt build --target snowflake` sont écrits
+   mais jamais lancés. Le SQL n'utilise que des fonctions communes aux deux bases.
+3. **DuckDB = un fichier** : si un programme le garde ouvert en écriture, dbt ne peut pas le réécrire.
+   Le dashboard l'ouvre en lecture seule et le referme après chaque requête.
+4. **Prédictions = scénarios** (mercredi / samedi, météo habituelle, sans pluie), pas une prévision du jour.
+5. **Londres** : pas d'heure → pas de prédiction ni d'analyse horaire / météo (reste dans la carte et la comparaison).
+6. Le modèle « créneau horaire » n'est toujours pas fait (voir limite 7 de la phase 2).
+
+### ➡️ Reste à faire
+
+1. Lancer le DAG complet sur les vraies données et corriger ce qui casse dans les images Docker.
+2. Créer l'essai Snowflake, remplir `.env`, `DBT_TARGET=snowflake`, relancer le DAG.
+3. Capture d'écran du dashboard dans le README + vidéo de démo (2 min).
+4. Activer la CI sur GitHub (elle se lance seule à la première Pull Request) et ajouter le badge au README.

@@ -1,0 +1,5 @@
+city,city_name,country,timezone,source_name,source_dataset,hour_reliable
+chicago,Chicago,United States,America/Chicago,Chicago Data Portal,ijzp-q8t2,1
+los_angeles,Los Angeles,United States,America/Los_Angeles,LA Open Data (LAPD NIBRS),k7nn-b2ep,1
+new_york,New York,United States,America/New_York,NYC Open Data (NYPD),5uac-w243,1
+london,London,United Kingdom,Europe/London,UK Police API,crimes-street,0

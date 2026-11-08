@@ -1,0 +1,36 @@
+version: 2
+
+# Les données d'entrée de dbt = les tables écrites par la phase 2 (Spark / Airflow).
+#
+# - Avec DuckDB  : dbt lit directement les fichiers Parquet du Data Lake (external_location).
+#                  Dossier du lake : variable CRIMEWATCH_LAKE (défaut ../data/lake).
+# - Avec Snowflake : les mêmes tables, chargées dans le schéma RAW par
+#                  warehouse/load_snowflake.py (external_location est ignoré).
+
+sources:
+  - name: gold
+    description: "Tables Gold du Data Lake (batch/silver_to_gold.py et ml/predict_zones.py)."
+    schema: raw
+    config:
+      external_location: "read_parquet('{{ env_var('CRIMEWATCH_LAKE', '../data/lake') }}/gold/{name}/*/*.parquet', hive_partitioning = true)"
+    tables:
+      - name: crime_features
+        description: "Un crime par ligne + zone (~500 m) + météo au moment du crime."
+        columns:
+          - name: event_id
+            data_tests: [unique, not_null]
+      - name: zone_stats
+        description: "Une ligne par zone : total, catégorie principale, rang dans la ville."
+      - name: zone_hourly
+        description: "Crimes par zone, date et heure (heure connue seulement)."
+      - name: zone_predictions
+        description: "Top-3 des catégories prédites par le modèle XGBoost, par zone / heure / type de jour."
+
+  - name: silver
+    description: "Tables Silver utiles à l'analyse (météo heure par heure)."
+    schema: raw
+    config:
+      external_location: "read_parquet('{{ env_var('CRIMEWATCH_LAKE', '../data/lake') }}/silver/{name}/*/*.parquet', hive_partitioning = true)"
+    tables:
+      - name: weather_hourly
+        description: "Météo heure par heure (heure locale) sur les dates couvertes par les crimes."
