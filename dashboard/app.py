@@ -40,7 +40,15 @@ ACCENT = "#2f6fdf"
 
 
 def base_map(city: str, zoom: int = 12) -> folium.Map:
-    return folium.Map(location=CITY_CENTER[city], zoom_start=zoom, tiles="CartoDB positron", control_scale=True)
+    # Fond OpenStreetMap : gratuit, sans clé d'API (les fonds CARTO demandent maintenant une clé)
+    return folium.Map(location=CITY_CENTER[city], zoom_start=zoom, tiles="OpenStreetMap", control_scale=True)
+
+
+def show_map(m: folium.Map, city: str, zoom: int, height: int, key: str) -> None:
+    """Affiche la carte. Centre et zoom passés explicitement : sinon streamlit-folium
+    peut ignorer zoom_start et afficher le monde entier."""
+    st_folium(m, height=height, use_container_width=True, returned_objects=[],
+              center=CITY_CENTER[city], zoom=zoom, key=key)
 
 
 # ---------------------------------------------------------------------------- en-tête
@@ -107,7 +115,7 @@ with tab_map:
             tooltip=f"#{z.rank_in_city} · {z.crime_count} crimes ({z.share_of_city_pct:.1f} % de la ville) · "
                     f"surtout : {z.top_category}",
         ).add_to(m)
-    st_folium(m, height=560, use_container_width=True, returned_objects=[], key=f"map-{city}-{slot}")
+    show_map(m, city, 12, 560, key=f"map-{city}-{slot}")
     st.caption("Zones = cases de ~500 m. Cercles blancs = zones les plus touchées (survoler pour le détail).")
 
 # ---------------------------------------------------------------------------- 🚨 alertes
@@ -132,7 +140,7 @@ with tab_alerts:
                     tooltip=f"{a.severity.upper()} · {a.crime_count} crimes · surtout {a.top_category} · "
                             f"fenêtre {a.window_start:%d/%m %H:%M} UTC",
                 ).add_to(m)
-            st_folium(m, height=480, use_container_width=True, returned_objects=[], key=f"alerts-{city}")
+            show_map(m, city, 11, 480, key=f"alerts-{city}")
             st.dataframe(
                 city_alerts[["window_start", "severity", "crime_count", "top_category", "radius_km",
                              "center_latitude", "center_longitude"]],
@@ -185,8 +193,7 @@ with tab_pred:
                     folium.CircleMarker([r.zone_lat, r.zone_lon], radius=5, color=color[r.category_label_fr],
                                         fill=True, fill_opacity=0.85,
                                         tooltip=f"{r.category_label_fr} ({r.probability:.0%})").add_to(m)
-                st_folium(m, height=380, use_container_width=True, returned_objects=[],
-                          key=f"pred-{city}-{day_type}-{hour}")
+                show_map(m, city, 11, 380, key=f"pred-{city}-{day_type}-{hour}")
                 st.caption(" · ".join(f"<span style='color:{color[l]}'>●</span> {l}" for l in labels),
                            unsafe_allow_html=True)
 
