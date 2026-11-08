@@ -51,3 +51,14 @@ jobs:
       - name: dbt build (seeds + modèles + tests)
         working-directory: crimewatch_dbt
         run: dbt build
+
+  # 3. Les images Docker se construisent-elles ? (producer, Spark, Airflow avec dbt, dashboard)
+  #    On ne lance pas les conteneurs : on vérifie que chaque Dockerfile va jusqu'au bout.
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Construire les images
+        run: |
+          cp .env.example .env
+          docker compose build producer spark-streaming airflow dashboard

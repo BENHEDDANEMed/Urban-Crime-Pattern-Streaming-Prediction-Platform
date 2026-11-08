@@ -9,7 +9,7 @@ dashboard **Streamlit + Folium**, le tout orchestré par **Airflow** et testé p
 
 > **État du projet :** Phases 1 et 2 terminées et testées de bout en bout sur les vraies données.
 > Phase 3 (dbt, dashboard, CI) codée et testée sur données synthétiques ; validation Docker et Snowflake à faire.
-> Voir [`HANDOFF.md`](HANDOFF.md).
+> Voir [`HANDOFF.md`](HANDOFF.md) et l'état d'avancement détaillé : [`docs/ETAT_AVANCEMENT.md`](docs/ETAT_AVANCEMENT.md) ([PDF](docs/ETAT_AVANCEMENT.pdf)).
 
 ## Architecture
 

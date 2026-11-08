@@ -80,7 +80,9 @@ with DAG(
     weather_history = job("weather_history", "-m batch.weather_history")
     silver_to_gold = job("silver_to_gold", "batch/silver_to_gold.py")
     check_gold = job("check_gold", "-m batch.quality_checks gold", retries=0)
-    train_category = job("train_category", "-m ml.train_category",
+    # 100 arbres (au lieu de 300 par défaut) : 3 fois plus rapide sur un PC, top-3 quasi identique.
+    # Pour la version complète : retirer --n-estimators (ou lancer ml.train_category à la main).
+    train_category = job("train_category", "-m ml.train_category --n-estimators 100",
                          execution_timeout=timedelta(minutes=30))
 
     predict_zones = job("predict_zones", "-m ml.predict_zones")
