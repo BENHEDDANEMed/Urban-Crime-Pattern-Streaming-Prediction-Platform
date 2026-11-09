@@ -146,3 +146,27 @@ et `weather_level` (`hourly` = météo de l'heure exacte, `daily` = moyenne du j
 
 Une ligne par zone : `crime_count`, `active_days`, `first_date`, `last_date`, `top_category`,
 `share_of_city_pct`, `rank_in_city` (1 = zone la plus touchée de la ville).
+
+### `data/lake/gold/zone_predictions/` (partition `city=`) — phase 3
+
+Écrit par `ml/predict_zones.py`. 3 lignes par scénario (zone × type de jour × heure) :
+`zone_id`, `day_type` (`semaine` | `week-end`), `hour_of_day` (0-23), `prediction_rank` (1-3),
+`crime_category`, `probability`, `model_run_id` (run MLflow), `scored_at` (UTC).
+
+## 6. Entrepôt (dbt, phase 3)
+
+Construit par `dbt build` dans `crimewatch_dbt/`. DuckDB : `data/warehouse/crimewatch.duckdb` ;
+Snowflake : base `CRIMEWATCH` (données brutes dans `RAW`, chargées par `warehouse/load_snowflake.py`).
+
+| Schéma | Tables | Rôle |
+|---|---|---|
+| `reference` | `cities`, `crime_categories`, `hours` | Seeds (CSV de référence) |
+| `staging` | `stg_crimes`, `stg_zone_stats`, `stg_zone_hourly`, `stg_weather_hourly`, `stg_zone_predictions` | Vues : renommage et types |
+| `marts` | `fact_crime`, `fact_zone_hourly` | Faits |
+| `marts` | `dim_city`, `dim_zone`, `dim_category`, `dim_date`, `dim_hour` | Dimensions |
+| `marts` | `mart_city_comparison`, `mart_city_daily`, `mart_hourly_profile`, `mart_weather_impact`, `mart_zone_predictions` | Analyses pour le dashboard |
+
+Clés : `fact_crime.event_id` (unique) ; vers les dimensions : `city`, `zone_id`, `crime_category`,
+`occurred_date` → `dim_date.date_day`, `hour_of_day` → `dim_hour` (**NULL si l'heure n'est pas fiable**).
+Description de chaque table et colonne : `dbt docs generate && dbt docs serve`.
+

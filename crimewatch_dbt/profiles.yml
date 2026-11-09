@@ -1,0 +1,27 @@
+# Connexions de dbt. Ce fichier est dans le projet (et sur GitHub) car il ne contient
+# AUCUN secret : tout vient de variables d'environnement (fichier .env, Airflow, CI).
+#
+#   dbt build                      -> DuckDB (par défaut, rien à installer de plus)
+#   dbt build --target snowflake   -> Snowflake (remplir SNOWFLAKE_* dans .env)
+
+crimewatch:
+  target: "{{ env_var('DBT_TARGET', 'duckdb') }}"
+  outputs:
+
+    duckdb:
+      type: duckdb
+      # Le fichier de la base (créé s'il n'existe pas). Chemin relatif à ce dossier.
+      path: "{{ env_var('DUCKDB_PATH', '../data/warehouse/crimewatch.duckdb') }}"
+      schema: analytics
+      threads: 4
+
+    snowflake:
+      type: snowflake
+      account: "{{ env_var('SNOWFLAKE_ACCOUNT', 'not-configured') }}"
+      user: "{{ env_var('SNOWFLAKE_USER', 'not-configured') }}"
+      password: "{{ env_var('SNOWFLAKE_PASSWORD', 'not-configured') }}"
+      role: "{{ env_var('SNOWFLAKE_ROLE', 'ACCOUNTADMIN') }}"
+      warehouse: "{{ env_var('SNOWFLAKE_WAREHOUSE', 'COMPUTE_WH') }}"
+      database: "{{ env_var('SNOWFLAKE_DATABASE', 'CRIMEWATCH') }}"
+      schema: analytics
+      threads: 4

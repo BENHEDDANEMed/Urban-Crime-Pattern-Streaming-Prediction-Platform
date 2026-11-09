@@ -1,0 +1,4 @@
+# dbt (phase 3) : pip install -r crimewatch_dbt/requirements.txt
+dbt-core>=1.10.6,<2
+dbt-duckdb>=1.9,<2
+# Pour Snowflake (optionnel) : pip install dbt-snowflake

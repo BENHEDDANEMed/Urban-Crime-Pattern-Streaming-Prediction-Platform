@@ -41,3 +41,10 @@ mlruns/
 
 # Fichiers téléchargés depuis Claude (pas dans le projet)
 Claude outputs/
+
+# Phase 3 : Gold de test (scripts/generate_gold_fixture.py) et base DuckDB construite par dbt
+data/fixture/
+data/warehouse/*
+!data/warehouse/.gitkeep
+# logs de dbt lancé depuis la racine
+logs/

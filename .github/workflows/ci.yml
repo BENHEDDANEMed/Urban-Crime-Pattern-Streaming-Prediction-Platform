@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  # 1. Tests unitaires Python (sans internet, sans Kafka, sans Spark)
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+      - name: Installer les dépendances
+        run: pip install -r requirements-dev.txt
+      - name: pytest
+        run: pytest -q
+
+  # 2. Le batch de bout en bout sur un petit Gold synthétique :
+  #    Gold de test -> modèle XGBoost -> prédictions -> dbt build (modèles + tests de données)
+  dbt:
+    runs-on: ubuntu-latest
+    env:
+      LAKE_PATH: data/fixture
+      MLFLOW_TRACKING_URI: sqlite:///data/fixture/mlflow.db
+      MLFLOW_DISABLE_AGENT_HINT: "1"
+      CRIMEWATCH_LAKE: ../data/fixture
+      DUCKDB_PATH: ../data/fixture/crimewatch.duckdb
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: |
+            requirements-dev.txt
+            crimewatch_dbt/requirements.txt
+      - name: Installer les dépendances
+        run: pip install -r requirements-dev.txt -r crimewatch_dbt/requirements.txt
+      - name: Gold de test
+        run: python scripts/generate_gold_fixture.py --crimes 3000
+      - name: Entraîner le modèle (MLflow)
+        run: python -m ml.train_category
+      - name: Prédictions par zone
+        run: python -m ml.predict_zones --top-zones 20
+      - name: dbt build (seeds + modèles + tests)
+        working-directory: crimewatch_dbt
+        run: dbt build
+
+  # 3. Les images Docker se construisent-elles ? (producer, Spark, Airflow avec dbt, dashboard)
+  #    On ne lance pas les conteneurs : on vérifie que chaque Dockerfile va jusqu'au bout.
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Construire les images
+        run: |
+          cp .env.example .env
+          docker compose build producer spark-streaming airflow dashboard

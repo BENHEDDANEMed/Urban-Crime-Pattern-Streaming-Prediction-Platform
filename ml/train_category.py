@@ -211,6 +211,13 @@ def main() -> None:
             "top3_accuracy": top_k_accuracy_score(y_test, proba, k=3, labels=range(len(classes))),
             **baselines(train, test),
         }
+        # Métriques par ville (New York pèse ~83 % des données : la moyenne globale le cache)
+        for city in CITIES:
+            in_city = (test["city"] == city).to_numpy()
+            if in_city.sum() > 0:
+                metrics[f"accuracy_{city}"] = accuracy_score(y_test[in_city], pred[in_city])
+                metrics[f"top3_accuracy_{city}"] = top_k_accuracy_score(
+                    y_test[in_city], proba[in_city], k=3, labels=range(len(classes)))
 
         mlflow.log_params({**params, "balanced": args.balanced, "zone_history": not args.no_zone_history,
                            "features": ",".join(features),

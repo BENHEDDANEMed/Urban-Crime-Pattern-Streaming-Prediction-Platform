@@ -15,4 +15,11 @@ RUN python -m venv /opt/jobs-venv \
     && /opt/jobs-venv/bin/pip install --no-cache-dir -r /tmp/jobs-requirements.txt \
     && chown -R airflow:root /opt/jobs-venv
 
+# Phase 3 : environnement dbt (DuckDB + Snowflake), séparé lui aussi (ses versions
+# de protobuf / jinja ne doivent pas casser MLflow ni Airflow)
+COPY crimewatch_dbt/requirements.txt /tmp/dbt-requirements.txt
+RUN python -m venv /opt/dbt-venv \
+    && /opt/dbt-venv/bin/pip install --no-cache-dir -r /tmp/dbt-requirements.txt "dbt-snowflake>=1.9,<2" \
+    && chown -R airflow:root /opt/dbt-venv
+
 USER airflow

@@ -183,6 +183,15 @@ services:
       AIRFLOW__WEBSERVER__SECRET_KEY: crimewatch-dev-only
       CRIMEWATCH_HOME: /app            # même chemin que spark-streaming (voir volumes)
       JOBS_PYTHON: /opt/jobs-venv/bin/python
+      DBT_BIN: /opt/dbt-venv/bin/dbt
+      # Phase 3 : dbt -> DuckDB par défaut ; "snowflake" quand SNOWFLAKE_* est rempli dans .env
+      DBT_TARGET: ${DBT_TARGET:-duckdb}
+      SNOWFLAKE_ACCOUNT: ${SNOWFLAKE_ACCOUNT:-}
+      SNOWFLAKE_USER: ${SNOWFLAKE_USER:-}
+      SNOWFLAKE_PASSWORD: ${SNOWFLAKE_PASSWORD:-}
+      SNOWFLAKE_ROLE: ${SNOWFLAKE_ROLE:-ACCOUNTADMIN}
+      SNOWFLAKE_WAREHOUSE: ${SNOWFLAKE_WAREHOUSE:-COMPUTE_WH}
+      SNOWFLAKE_DATABASE: ${SNOWFLAKE_DATABASE:-CRIMEWATCH}
     volumes:
       - ./airflow/dags:/opt/airflow/dags
       - ./:/app                        # MÊME chemin que spark-streaming : le registre
@@ -193,6 +202,26 @@ services:
       (airflow users create --username admin --password admin --firstname Crime --lastname Watch
       --role Admin --email admin@example.com || true) &&
       airflow standalone"
+    restart: unless-stopped
+
+  # --- Phase 3 : dashboard Streamlit  http://localhost:8501 ---------------------
+  # Lit la base DuckDB construite par dbt (data/warehouse/crimewatch.duckdb)
+  # et les alertes temps réel du topic crimes.alerts.
+  dashboard:
+    build:
+      context: .
+      dockerfile: docker/dashboard.Dockerfile
+    container_name: dashboard
+    depends_on:
+      kafka-init:
+        condition: service_completed_successfully
+    ports:
+      - "8501:8501"
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      DUCKDB_PATH: /app/data/warehouse/crimewatch.duckdb
+    volumes:
+      - ./:/app
     restart: unless-stopped
 
 volumes:

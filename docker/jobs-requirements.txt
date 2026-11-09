@@ -10,3 +10,5 @@ python-dotenv>=1.0
 scikit-learn>=1.4
 xgboost>=2.1
 mlflow>=3.0
+# Phase 3 : chargement des tables Gold dans Snowflake (warehouse/load_snowflake.py)
+snowflake-connector-python[pandas]>=3.12

@@ -1,0 +1,34 @@
+# Projet dbt de CrimeWatch (phase 3)
+#
+# dbt lit les tables Gold (Parquet) et construit un schéma en étoile :
+#   sources (Gold)  ->  staging (nettoyage, 1 vue par table)  ->  marts (faits + dimensions)
+#
+# Lancer depuis ce dossier :   dbt build         (= seeds + modèles + tests, dans le bon ordre)
+# Documentation + lineage   :   dbt docs generate && dbt docs serve
+
+name: crimewatch
+version: "1.0.0"
+config-version: 2
+
+# Nom du profil de connexion (voir profiles.yml dans ce dossier)
+profile: crimewatch
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+test-paths: ["tests"]
+macro-paths: ["macros"]
+target-path: "target"
+clean-targets: ["target", "dbt_packages"]
+
+models:
+  crimewatch:
+    staging:
+      +materialized: view     # juste du nettoyage : une vue suffit
+      +schema: staging
+    marts:
+      +materialized: table    # ce que lit le dashboard : de vraies tables (rapides)
+      +schema: marts
+
+seeds:
+  crimewatch:
+    +schema: reference

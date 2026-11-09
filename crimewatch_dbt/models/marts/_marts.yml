@@ -1,0 +1,126 @@
+version: 2
+
+models:
+  # ----------------------------------------------------------------- dimensions
+  - name: dim_city
+    description: "Dimension ville (seed cities + période couverte)."
+    columns:
+      - name: city
+        data_tests: [unique, not_null]
+
+  - name: dim_category
+    description: "Dimension catégorie : les 16 catégories communes, libellé français, famille."
+    columns:
+      - name: crime_category
+        data_tests: [unique, not_null]
+
+  - name: dim_hour
+    description: "Dimension heure (0-23) et créneau (nuit / matin / après-midi / soir)."
+    columns:
+      - name: hour_of_day
+        data_tests: [unique, not_null]
+
+  - name: dim_date
+    description: "Dimension date : un jour par ligne (année, mois, jour de semaine, saison...)."
+    columns:
+      - name: date_day
+        data_tests: [unique, not_null]
+
+  - name: dim_zone
+    description: "Dimension zone : case de ~500 m, coordonnées du centre, rang dans la ville."
+    columns:
+      - name: zone_id
+        data_tests: [unique, not_null]
+      - name: city
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_city')
+                field: city
+
+  # ----------------------------------------------------------------- faits
+  - name: fact_crime
+    description: "Table de faits : un crime par ligne, reliée aux 5 dimensions."
+    columns:
+      - name: event_id
+        description: "Clé unique du crime (venant de Kafka)."
+        data_tests: [unique, not_null]
+      - name: city
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_city')
+                field: city
+      - name: zone_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_zone')
+                field: zone_id
+      - name: crime_category
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_category')
+                field: crime_category
+      - name: occurred_date
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_day
+      - name: hour_of_day
+        description: "NULL si l'heure n'est pas fiable (Londres, crimes à 00:00 pile)."
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_hour')
+                field: hour_of_day
+
+  - name: fact_zone_hourly
+    description: "Crimes par zone / jour / heure (heatmap heure par heure)."
+    columns:
+      - name: zone_hour_key
+        data_tests: [unique, not_null]
+      - name: zone_id
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_zone')
+                field: zone_id
+      - name: hour_of_day
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_hour')
+                field: hour_of_day
+
+  # ----------------------------------------------------------------- marts d'analyse
+  - name: mart_city_comparison
+    description: "Une ligne par ville : volume, crimes par jour, part de nuit / week-end / violents."
+    columns:
+      - name: city
+        data_tests: [unique, not_null]
+
+  - name: mart_city_daily
+    description: "Crimes par ville et par jour (courbes d'évolution)."
+
+  - name: mart_hourly_profile
+    description: "Nombre moyen de crimes par heure, en semaine et le week-end, par ville."
+
+  - name: mart_weather_impact
+    description: >
+      Crimes par heure selon la météo (pluie / sec, tranche de température), comparés
+      à la moyenne de la ville (index_vs_city). Les heures de chaque condition sont comptées
+      pour ne pas confondre "il pleut rarement" et "il y a peu de crimes quand il pleut".
+    columns:
+      - name: hours_observed
+        data_tests: [not_null]
+
+  - name: mart_zone_predictions
+    description: "Top-3 des catégories prédites (XGBoost) par zone, type de jour et heure."

@@ -1,0 +1,17 @@
+crime_category,category_label_fr,crime_family,is_violent
+vehicle_theft,Vol de véhicule,atteinte_aux_biens,0
+traffic,Infraction routière,ordre_public,0
+robbery,Vol avec violence,atteinte_aux_personnes,1
+burglary,Cambriolage,atteinte_aux_biens,0
+sexual,Agression sexuelle,atteinte_aux_personnes,1
+harassment,Harcèlement / menaces,atteinte_aux_personnes,0
+assault,Agression,atteinte_aux_personnes,1
+drugs,Stupéfiants,stupefiants_armes,0
+weapons,Armes,stupefiants_armes,0
+vandalism,Dégradations,atteinte_aux_biens,0
+fraud,Fraude,fraude,0
+theft,Vol,atteinte_aux_biens,0
+trespass,Intrusion,atteinte_aux_biens,0
+justice,Atteinte à la justice,ordre_public,0
+public_order,Ordre public,ordre_public,0
+other,Autre,autre,0
